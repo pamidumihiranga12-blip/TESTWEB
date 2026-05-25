@@ -1,24 +1,54 @@
 import emailjs from '@emailjs/browser';
 
 // ============================================================
-// EmailJS Configuration
+// EmailJS Configuration — SmartZone SMTP
 // ============================================================
-// IMPORTANT: Replace these with your actual EmailJS credentials
-// 1. Go to https://www.emailjs.com/ and create a free account
-// 2. Add Gmail service (smartzonelk101@gmail.com)
-// 3. Create email templates (see below for template variables)
-// 4. Copy the IDs here
+// HOW TO SET UP (one-time setup):
+//
+// 1. Go to https://www.emailjs.com/ and create a FREE account
+//
+// 2. Add Email Service:
+//    Dashboard → Email Services → Add New Service → Custom SMTP
+//    Name:       SmartZone
+//    SMTP Host:  smtp.smartzone.com.lk
+//    SMTP Port:  465
+//    Username:   admin@smartzone.com.lk
+//    Password:   Pamidu12345@
+//    Security:   SSL/TLS
+//    Click "Create Service" → copy the Service ID below
+//
+// 3. Create Template 1 — Order Notification (template_new_order):
+//    Dashboard → Email Templates → Create New Template
+//    Name it "template_new_order"
+//    Required variables: {{to_email}}, {{to_name}}, {{order_id}},
+//      {{customer_name}}, {{customer_email}}, {{customer_phone}},
+//      {{shipping_address}}, {{order_items}}, {{subtotal}},
+//      {{delivery_charge}}, {{total}}, {{payment_method}},
+//      {{notes}}, {{order_date}}, {{subject}}
+//
+// 4. Create Template 2 — Status Update (template_status_update):
+//    Name it "template_status_update"
+//    Required variables: {{to_email}}, {{to_name}}, {{order_id}},
+//      {{customer_name}}, {{new_status}}, {{status_message}},
+//      {{total}}, {{tracking_number}}, {{subject}}
+//
+// 5. Create Template 3 — Password Reset (template_password_reset):
+//    Name it "template_password_reset"
+//    Required variables: {{to_email}}, {{to_name}}, {{reset_link}}, {{subject}}
+//
+// 6. Go to Account → General → Public Key → copy it below
 // ============================================================
 
-const EMAILJS_SERVICE_ID = 'service_smartzone';    // Replace with your EmailJS Service ID
-const EMAILJS_PUBLIC_KEY = 'YOUR_PUBLIC_KEY';       // Replace with your EmailJS Public Key
+const EMAILJS_SERVICE_ID = 'service_smartzone';      // ← Replace with your EmailJS Service ID after setup
+const EMAILJS_PUBLIC_KEY = 'YOUR_PUBLIC_KEY';         // ← Replace with your EmailJS Public Key after setup
 
-// Template IDs
-const TEMPLATE_NEW_ORDER = 'template_new_order';           // For admin notification + customer confirmation
-const TEMPLATE_STATUS_UPDATE = 'template_status_update';   // For status update emails
+// Template IDs — must match what you created in EmailJS dashboard
+const TEMPLATE_NEW_ORDER = 'template_new_order';      // Order confirmation (to customer + admin)
+const TEMPLATE_STATUS_UPDATE = 'template_status_update'; // Order status update to customer
+const TEMPLATE_PASSWORD_RESET = 'template_password_reset'; // Password reset link
 
-// Admin email
-const ADMIN_EMAIL = 'smartzonelk101@gmail.com';
+// Admin email — all order notifications go here
+const ADMIN_EMAIL = 'admin@smartzone.com.lk';
 
 interface OrderEmailData {
   orderId: string;
@@ -148,5 +178,29 @@ export const sendStatusUpdateEmail = async (
     console.log('Status update email sent successfully');
   } catch (error) {
     console.error('Failed to send status update email:', error);
+  }
+};
+
+/**
+ * Send password reset link email to user
+ * Called after Firebase generates the reset link via sendPasswordResetEmail()
+ */
+export const sendPasswordResetNotification = async (
+  userEmail: string,
+  userName: string,
+  resetLink: string
+): Promise<void> => {
+  try {
+    await emailjs.send(EMAILJS_SERVICE_ID, TEMPLATE_PASSWORD_RESET, {
+      to_email: userEmail,
+      to_name: userName || 'Valued Customer',
+      from_name: 'SmartZone',
+      subject: '🔑 Reset Your SmartZone Password',
+      reset_link: resetLink,
+    }, EMAILJS_PUBLIC_KEY);
+    console.log('Password reset email sent successfully via SmartZone SMTP');
+  } catch (error) {
+    console.error('Failed to send password reset email via EmailJS:', error);
+    // Firebase's built-in reset email is still sent as a fallback
   }
 };

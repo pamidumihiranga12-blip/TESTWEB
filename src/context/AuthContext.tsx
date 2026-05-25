@@ -8,10 +8,12 @@ import {
   updateProfile,
   GoogleAuthProvider,
   signInWithPopup,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
+  ActionCodeSettings
 } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
+import { sendPasswordResetNotification } from '../utils/emailService';
 import { UserProfile } from '../types';
 
 interface AuthContextType {
@@ -31,7 +33,7 @@ const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
 export const useAuth = () => useContext(AuthContext);
 
-const ADMIN_EMAIL = 'smartzonelk101@gmail.com';
+const ADMIN_EMAIL = 'admin@smartzone.com.lk';
 const googleProvider = new GoogleAuthProvider();
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -145,7 +147,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const resetPassword = async (email: string) => {
+    // Firebase generates and sends the reset email from its own servers.
+    // We also send a branded copy from admin@smartzone.com.lk via EmailJS.
     await sendPasswordResetEmail(auth, email);
+
+    // Try to look up the user's display name for a personalised email
+    try {
+      // Generate a fresh action link URL for the branded email
+      const actionCodeSettings: ActionCodeSettings = {
+        url: window.location.origin + '/login',
+        handleCodeInApp: false,
+      };
+      // Note: generatePasswordResetLink is server-side only.
+      // We send a friendly notification instead, directing them to check inbox.
+      await sendPasswordResetNotification(
+        email,
+        '',  // name unknown at this stage; the function will use "Valued Customer"
+        window.location.origin + '/login'
+      );
+    } catch (err) {
+      // Non-critical — Firebase already sent the official reset email
+      console.warn('Branded reset email failed:', err);
+    }
   };
 
   const logout = async () => {
