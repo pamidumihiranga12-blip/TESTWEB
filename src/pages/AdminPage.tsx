@@ -62,6 +62,23 @@ const AdminPage: React.FC = () => {
   // Order detail
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
+  // Order edit/delete
+  const [showOrderEditModal, setShowOrderEditModal] = useState(false);
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
+  const [orderForm, setOrderForm] = useState({
+    customerName: '',
+    customerEmail: '',
+    customerPhone: '',
+    shippingAddress: '',
+    status: 'pending' as string,
+    trackingNumber: '',
+    notes: '',
+    subtotal: '',
+    deliveryCharge: '',
+    total: '',
+  });
+  const [savingOrder, setSavingOrder] = useState(false);
+
   // User management
   const [showUserForm, setShowUserForm] = useState(false);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
@@ -122,37 +139,46 @@ const AdminPage: React.FC = () => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = (event) => {
-        const img = new Image();
+        const img = document.createElement('img') as HTMLImageElement;
+        img.crossOrigin = 'anonymous';
         img.src = event.target?.result as string;
         img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const MAX_WIDTH = 800;
-          const MAX_HEIGHT = 800;
-          let width = img.width;
-          let height = img.height;
+          try {
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 600;
+            const MAX_HEIGHT = 600;
+            let width = img.width;
+            let height = img.height;
 
-          if (width > height) {
-            if (width > MAX_WIDTH) {
-              height *= MAX_WIDTH / width;
-              width = MAX_WIDTH;
+            if (width > height) {
+              if (width > MAX_WIDTH) {
+                height *= MAX_WIDTH / width;
+                width = MAX_WIDTH;
+              }
+            } else {
+              if (height > MAX_HEIGHT) {
+                width *= MAX_HEIGHT / height;
+                height = MAX_HEIGHT;
+              }
             }
-          } else {
-            if (height > MAX_HEIGHT) {
-              width *= MAX_HEIGHT / height;
-              height = MAX_HEIGHT;
-            }
-          }
 
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) {
+            canvas.width = Math.round(width);
+            canvas.height = Math.round(height);
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+              // Canvas not available, use raw data URL (truncated if too large)
+              const rawDataUrl = event.target?.result as string;
+              resolve(rawDataUrl);
+              return;
+            }
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            // Use lower quality (0.5) to keep base64 small for Firestore docs
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.5);
+            resolve(dataUrl);
+          } catch (canvasError) {
+            console.warn('Canvas compression failed:', canvasError);
             resolve(event.target?.result as string);
-            return;
           }
-          ctx.drawImage(img, 0, 0, width, height);
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-          resolve(dataUrl);
         };
         img.onerror = (err) => reject(err);
       };
@@ -177,27 +203,33 @@ const AdminPage: React.FC = () => {
       e.target.value = '';
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Image must be less than 5MB');
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Image must be less than 10MB');
       e.target.value = '';
       return;
     }
 
     setUploadingMainImage(true);
     try {
+      // Try Firebase Storage first
       const fileName = `products/${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
       const url = await uploadImageToStorage(file, fileName);
       setProductForm(prev => ({ ...prev, imageUrl: url }));
       toast.success('Image uploaded successfully!');
     } catch (error) {
-      console.warn('Storage upload error, falling back to local base64:', error);
+      console.warn('Storage upload failed, using compressed base64 fallback:', error);
       try {
         const compressedBase64 = await compressImage(file);
-        setProductForm(prev => ({ ...prev, imageUrl: compressedBase64 }));
-        toast.success('Image loaded successfully (local fallback)!');
+        // Check if compressed image is small enough for Firestore (< 900KB as string)
+        if (compressedBase64.length > 900000) {
+          toast.error('Image too large even after compression. Try a smaller image.');
+        } else {
+          setProductForm(prev => ({ ...prev, imageUrl: compressedBase64 }));
+          toast.success('Image loaded successfully!');
+        }
       } catch (fallbackError) {
         console.error('Fallback error:', fallbackError);
-        toast.error('Failed to load image');
+        toast.error('Failed to load image. Try a URL instead.');
       }
     } finally {
       setUploadingMainImage(false);
@@ -339,6 +371,73 @@ const AdminPage: React.FC = () => {
       }
     } catch (error) {
       toast.error('Error updating order');
+    }
+  };
+
+  const deleteOrder = async (orderId: string) => {
+    if (!confirm('Are you sure you want to delete this order? This cannot be undone.')) return;
+    try {
+      await deleteDoc(doc(db, 'orders', orderId));
+      toast.success('Order deleted');
+      if (selectedOrder?.id === orderId) {
+        setSelectedOrder(null);
+      }
+      fetchAllData();
+    } catch (error) {
+      toast.error('Error deleting order');
+    }
+  };
+
+  const startEditOrder = (order: Order) => {
+    setEditingOrder(order);
+    setOrderForm({
+      customerName: order.customerName || '',
+      customerEmail: order.customerEmail || '',
+      customerPhone: order.customerPhone || '',
+      shippingAddress: order.shippingAddress || '',
+      status: order.status || 'pending',
+      trackingNumber: order.trackingNumber || '',
+      notes: order.notes || '',
+      subtotal: (order.subtotal || 0).toString(),
+      deliveryCharge: (order.deliveryCharge || 500).toString(),
+      total: order.total.toString(),
+    });
+    setShowOrderEditModal(true);
+  };
+
+  const handleOrderEditSubmit = async () => {
+    if (!editingOrder) return;
+    setSavingOrder(true);
+    try {
+      const updatedData: any = {
+        customerName: orderForm.customerName,
+        customerEmail: orderForm.customerEmail,
+        customerPhone: orderForm.customerPhone,
+        shippingAddress: orderForm.shippingAddress,
+        status: orderForm.status,
+        trackingNumber: orderForm.trackingNumber,
+        notes: orderForm.notes,
+        subtotal: parseFloat(orderForm.subtotal) || 0,
+        deliveryCharge: parseFloat(orderForm.deliveryCharge) || 0,
+        total: parseFloat(orderForm.total) || 0,
+        updatedAt: Date.now(),
+      };
+
+      await updateDoc(doc(db, 'orders', editingOrder.id), updatedData);
+      toast.success('Order updated successfully');
+      setShowOrderEditModal(false);
+      setEditingOrder(null);
+
+      // Update selectedOrder if viewing this order
+      if (selectedOrder?.id === editingOrder.id) {
+        setSelectedOrder({ ...selectedOrder, ...updatedData });
+      }
+
+      fetchAllData();
+    } catch (error) {
+      toast.error('Error updating order');
+    } finally {
+      setSavingOrder(false);
     }
   };
 
@@ -981,6 +1080,22 @@ const AdminPage: React.FC = () => {
                         </div>
                       </div>
 
+                      {/* Edit & Delete buttons for the detail view */}
+                      <div className="mt-6 flex gap-3">
+                        <button
+                          onClick={() => startEditOrder(selectedOrder)}
+                          className="flex-1 py-2.5 bg-amber-50 text-amber-700 rounded-xl font-medium hover:bg-amber-100 transition flex items-center justify-center gap-2"
+                        >
+                          <Pencil size={16} /> Edit Order
+                        </button>
+                        <button
+                          onClick={() => deleteOrder(selectedOrder.id)}
+                          className="py-2.5 px-6 bg-red-50 text-red-600 rounded-xl font-medium hover:bg-red-100 transition flex items-center justify-center gap-2"
+                        >
+                          <Trash2 size={16} /> Delete
+                        </button>
+                      </div>
+
                       {selectedOrder.notes && (
                         <div className="mt-4 bg-yellow-50 p-4 rounded-xl">
                           <p className="text-sm"><strong>Notes:</strong> {selectedOrder.notes}</p>
@@ -1002,7 +1117,7 @@ const AdminPage: React.FC = () => {
                               <th className="text-left py-3 px-4 font-semibold text-gray-600">Total</th>
                               <th className="text-left py-3 px-4 font-semibold text-gray-600">Status</th>
                               <th className="text-left py-3 px-4 font-semibold text-gray-600">Date</th>
-                              <th className="text-left py-3 px-4 font-semibold text-gray-600">Action</th>
+                              <th className="text-left py-3 px-4 font-semibold text-gray-600">Actions</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -1033,9 +1148,17 @@ const AdminPage: React.FC = () => {
                                 </td>
                                 <td className="py-3 px-4 text-gray-500 text-xs">{new Date(order.createdAt).toLocaleDateString()}</td>
                                 <td className="py-3 px-4">
-                                  <button onClick={() => setSelectedOrder(order)} className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition">
-                                    <Eye size={14} />
-                                  </button>
+                                  <div className="flex gap-1">
+                                    <button onClick={() => setSelectedOrder(order)} className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition" title="View">
+                                      <Eye size={14} />
+                                    </button>
+                                    <button onClick={() => startEditOrder(order)} className="p-2 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition" title="Edit">
+                                      <Pencil size={14} />
+                                    </button>
+                                    <button onClick={() => deleteOrder(order.id)} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition" title="Delete">
+                                      <Trash2 size={14} />
+                                    </button>
+                                  </div>
                                 </td>
                               </tr>
                             ))}
@@ -1051,6 +1174,161 @@ const AdminPage: React.FC = () => {
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Order Edit Modal */}
+            {showOrderEditModal && editingOrder && (
+              <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4 overflow-y-auto">
+                <div className="bg-white rounded-2xl w-full max-w-lg my-8 shadow-2xl">
+                  <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+                    <h3 className="text-lg font-bold text-gray-800">
+                      Edit Order #{editingOrder.id.slice(0, 8).toUpperCase()}
+                    </h3>
+                    <button onClick={() => { setShowOrderEditModal(false); setEditingOrder(null); }} className="p-2 hover:bg-gray-100 rounded-lg">
+                      <X size={20} />
+                    </button>
+                  </div>
+                  <div className="p-6 space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Customer Name</label>
+                        <input
+                          type="text" value={orderForm.customerName}
+                          onChange={e => setOrderForm({ ...orderForm, customerName: e.target.value })}
+                          className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:border-blue-400 focus:outline-none text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <input
+                          type="email" value={orderForm.customerEmail}
+                          onChange={e => setOrderForm({ ...orderForm, customerEmail: e.target.value })}
+                          className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:border-blue-400 focus:outline-none text-sm"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                        <input
+                          type="tel" value={orderForm.customerPhone}
+                          onChange={e => setOrderForm({ ...orderForm, customerPhone: e.target.value })}
+                          className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:border-blue-400 focus:outline-none text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                        <select
+                          value={orderForm.status}
+                          onChange={e => setOrderForm({ ...orderForm, status: e.target.value })}
+                          className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:border-blue-400 focus:outline-none text-sm"
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="processing">Processing</option>
+                          <option value="shipped">Shipped</option>
+                          <option value="delivered">Delivered</option>
+                          <option value="cancelled">Cancelled</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Shipping Address</label>
+                      <textarea
+                        rows={2} value={orderForm.shippingAddress}
+                        onChange={e => setOrderForm({ ...orderForm, shippingAddress: e.target.value })}
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:border-blue-400 focus:outline-none text-sm resize-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Tracking Number</label>
+                      <input
+                        type="text" value={orderForm.trackingNumber}
+                        onChange={e => setOrderForm({ ...orderForm, trackingNumber: e.target.value })}
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:border-blue-400 focus:outline-none text-sm"
+                        placeholder="Enter tracking number..."
+                      />
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Subtotal (Rs.)</label>
+                        <input
+                          type="number" step="0.01" value={orderForm.subtotal}
+                          onChange={e => {
+                            const sub = e.target.value;
+                            const del = orderForm.deliveryCharge;
+                            setOrderForm({ ...orderForm, subtotal: sub, total: (parseFloat(sub || '0') + parseFloat(del || '0')).toString() });
+                          }}
+                          className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:border-blue-400 focus:outline-none text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Delivery (Rs.)</label>
+                        <input
+                          type="number" step="0.01" value={orderForm.deliveryCharge}
+                          onChange={e => {
+                            const del = e.target.value;
+                            const sub = orderForm.subtotal;
+                            setOrderForm({ ...orderForm, deliveryCharge: del, total: (parseFloat(sub || '0') + parseFloat(del || '0')).toString() });
+                          }}
+                          className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:border-blue-400 focus:outline-none text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Total (Rs.)</label>
+                        <input
+                          type="number" step="0.01" value={orderForm.total}
+                          onChange={e => setOrderForm({ ...orderForm, total: e.target.value })}
+                          className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:border-blue-400 focus:outline-none text-sm bg-gray-50 font-bold"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                      <textarea
+                        rows={2} value={orderForm.notes}
+                        onChange={e => setOrderForm({ ...orderForm, notes: e.target.value })}
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:border-blue-400 focus:outline-none text-sm resize-none"
+                        placeholder="Internal notes..."
+                      />
+                    </div>
+
+                    {/* Order Items (read-only preview) */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Items ({editingOrder.items.length})</label>
+                      <div className="space-y-1 max-h-32 overflow-y-auto">
+                        {editingOrder.items.map((item, i) => (
+                          <div key={i} className="flex items-center gap-2 text-xs bg-gray-50 p-2 rounded-lg">
+                            <img src={item.imageUrl || '/images/product-placeholder.jpg'} alt="" className="w-8 h-8 object-cover rounded" />
+                            <span className="flex-1 truncate">{item.productName}</span>
+                            <span className="text-gray-500">×{item.quantity}</span>
+                            <span className="font-medium">Rs. {(item.price * item.quantity).toLocaleString()}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3 pt-2">
+                      <button
+                        onClick={() => { setShowOrderEditModal(false); setEditingOrder(null); }}
+                        className="flex-1 py-2.5 bg-gray-100 text-gray-600 rounded-xl font-medium hover:bg-gray-200 transition"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleOrderEditSubmit}
+                        disabled={savingOrder}
+                        className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition flex items-center justify-center gap-2 disabled:opacity-50"
+                      >
+                        {savingOrder ? (
+                          <><Loader2 size={16} className="animate-spin" /> Saving...</>
+                        ) : (
+                          <><Save size={16} /> Save Changes</>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { doc, getDoc, collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
 import { Order } from '../types';
@@ -50,11 +50,12 @@ const TrackOrderPage: React.FC = () => {
     try {
       const q = query(
         collection(db, 'orders'),
-        where('userId', '==', user.uid),
-        orderBy('createdAt', 'desc')
+        where('userId', '==', user.uid)
       );
       const snap = await getDocs(q);
-      setMyOrders(snap.docs.map(d => ({ id: d.id, ...d.data() } as Order)));
+      const fetchedOrders = snap.docs.map(d => ({ id: d.id, ...d.data() } as Order));
+      fetchedOrders.sort((a, b) => b.createdAt - a.createdAt);
+      setMyOrders(fetchedOrders);
     } catch (error) {
       console.error('Error fetching orders:', error);
     }
