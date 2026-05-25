@@ -74,31 +74,57 @@ const CartPage: React.FC = () => {
 
       let bankSlipUrl = '';
       if (paymentMethod === 'bank_transfer' && bankSlip) {
+        // Compress the bank slip image client-side for a reliable base64 fallback
+        const compressBankSlip = (file: File): Promise<string> => {
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (ev) => {
+              const img = document.createElement('img');
+              img.src = ev.target?.result as string;
+              img.onload = () => {
+                try {
+                  const canvas = document.createElement('canvas');
+                  const MAX = 800;
+                  let w = img.width, h = img.height;
+                  if (w > h) { if (w > MAX) { h *= MAX / w; w = MAX; } }
+                  else { if (h > MAX) { w *= MAX / h; h = MAX; } }
+                  canvas.width = Math.round(w);
+                  canvas.height = Math.round(h);
+                  const ctx = canvas.getContext('2d');
+                  if (!ctx) { resolve(ev.target?.result as string); return; }
+                  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                  resolve(canvas.toDataURL('image/jpeg', 0.6));
+                } catch { resolve(ev.target?.result as string); }
+              };
+              img.onerror = () => reject(new Error('Failed to load image for compression'));
+            };
+            reader.onerror = () => reject(new Error('Failed to read file'));
+          });
+        };
+
+        // First, prepare a compressed fallback
+        let compressedBase64 = '';
+        try {
+          compressedBase64 = await compressBankSlip(bankSlip);
+        } catch (compErr) {
+          console.warn('Bank slip compression failed:', compErr);
+        }
+
+        // Try Firebase Storage upload with generous timeout
         try {
           const storageRef = ref(storage, `bank_slips/${Date.now()}_${bankSlip.name}`);
-          
-          // Timeout after 3.5 seconds to prevent hanging if Storage is not activated in console
+          const uploadPromise = uploadBytes(storageRef, bankSlip).then(async (result) => {
+            return await getDownloadURL(result.ref);
+          });
           const timeoutPromise = new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('Firebase Storage upload timed out after 3.5 seconds')), 3500)
+            setTimeout(() => reject(new Error('Storage upload timed out')), 15000)
           );
-          
-          const uploadPromise = uploadBytes(storageRef, bankSlip);
-          const uploadResult = await Promise.race([uploadPromise, timeoutPromise]);
-          
-          // Get download URL with 2-second timeout
-          const urlPromise = getDownloadURL(uploadResult.ref);
-          const urlTimeoutPromise = new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('Firebase Storage URL lookup timed out')), 2000)
-          );
-          
-          bankSlipUrl = await Promise.race([urlPromise, urlTimeoutPromise]);
+          bankSlipUrl = await Promise.race([uploadPromise, timeoutPromise]);
         } catch (storageError) {
-          console.error('Error uploading bank transfer slip:', storageError);
-          // If storage upload fails or times out, we use base64 fallback only if the file size is very small (< 100KB)
-          // to avoid bloat and Firestore document size limit issues.
-          if (bankSlipPreview && bankSlipPreview.length < 130000) {
-            bankSlipUrl = bankSlipPreview;
-          }
+          console.warn('Firebase Storage upload failed, using compressed base64 fallback:', storageError);
+          // Use compressed base64 as fallback — typically 30-80KB, well within Firestore 1MB doc limit
+          bankSlipUrl = compressedBase64;
         }
       }
 
