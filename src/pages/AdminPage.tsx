@@ -18,15 +18,15 @@ import { sendStatusUpdateEmail } from '../utils/emailService';
 type Tab = 'dashboard' | 'products' | 'orders' | 'messages' | 'settings' | 'users';
 
 const defaultSettings: SiteSettings = {
-  bannerText: '🔥 Free Shipping on Orders Over Rs. 5,000!',
+  bannerText: '⚡ Supercharge Your Network! High-Performance Routers & Professional Tech Services ⚡',
   bannerEnabled: true,
-  heroTitle: 'Smart Shopping, Smart Living',
-  heroSubtitle: 'Discover the latest gadgets and electronics at unbeatable prices.',
+  heroTitle: 'High-Speed Routers & Expert Tech Services',
+  heroSubtitle: 'Experience seamless connectivity with our top-tier routers and professional network setup, tech installation, maintenance, and support services customized for you.',
   heroImageUrl: '/images/hero-banner.jpg',
   announcement: '',
   announcementEnabled: false,
   featuredCategoryTitle: 'Featured Products',
-  aboutText: 'SmartZone is your go-to destination for premium electronics and gadgets.',
+  aboutText: 'SmartZone is your premier destination for high-performance routers and professional tech support and installation services.',
   specialOfferEnabled: false,
   specialOfferTitle: '',
   specialOfferDescription: '',

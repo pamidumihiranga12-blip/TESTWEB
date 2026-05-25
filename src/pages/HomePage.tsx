@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { collection, getDocs, query, where, orderBy, limit, doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, orderBy, limit, doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Product, SiteSettings } from '../types';
 import { ShoppingCart, ArrowRight, Star, Truck, Shield, Headphones, Zap } from 'lucide-react';
@@ -8,15 +8,15 @@ import { useCart } from '../context/CartContext';
 import toast from 'react-hot-toast';
 
 const defaultSettings: SiteSettings = {
-  bannerText: '🔥 Free Shipping on Orders Over Rs. 5,000! Shop Now!',
+  bannerText: '⚡ Supercharge Your Network! High-Performance Routers & Professional Tech Services ⚡',
   bannerEnabled: true,
-  heroTitle: 'Smart Shopping, Smart Living',
-  heroSubtitle: 'Discover the latest gadgets and electronics at unbeatable prices. Quality products delivered right to your doorstep in Anuradhapura and beyond.',
+  heroTitle: 'High-Speed Routers & Expert Tech Services',
+  heroSubtitle: 'Experience seamless connectivity with our top-tier routers and professional network setup, tech installation, maintenance, and support services customized for you.',
   heroImageUrl: '/images/hero-banner.jpg',
   announcement: '',
   announcementEnabled: false,
   featuredCategoryTitle: 'Featured Products',
-  aboutText: 'SmartZone is your go-to destination for premium electronics and gadgets.',
+  aboutText: 'SmartZone is your premier destination for high-performance routers and professional tech support and installation services.',
   specialOfferEnabled: false,
   specialOfferTitle: '',
   specialOfferDescription: '',
@@ -36,7 +36,23 @@ const HomePage: React.FC = () => {
         // Fetch settings
         const settingsDoc = await getDoc(doc(db, 'settings', 'site'));
         if (settingsDoc.exists()) {
-          setSettings({ ...defaultSettings, ...settingsDoc.data() as SiteSettings });
+          const data = settingsDoc.data() as SiteSettings;
+          if (data.heroTitle === 'Smart Shopping, Smart Living' || data.bannerText?.includes('Free Shipping on Orders Over Rs. 5,000')) {
+            const migrated = {
+              ...data,
+              bannerText: defaultSettings.bannerText,
+              heroTitle: defaultSettings.heroTitle,
+              heroSubtitle: defaultSettings.heroSubtitle,
+              aboutText: defaultSettings.aboutText,
+            };
+            await setDoc(doc(db, 'settings', 'site'), migrated);
+            setSettings({ ...defaultSettings, ...migrated });
+          } else {
+            setSettings({ ...defaultSettings, ...data });
+          }
+        } else {
+          await setDoc(doc(db, 'settings', 'site'), defaultSettings);
+          setSettings(defaultSettings);
         }
 
         // Fetch featured products
