@@ -74,14 +74,24 @@ const CartPage: React.FC = () => {
 
       let bankSlipUrl = '';
       if (paymentMethod === 'bank_transfer' && bankSlip) {
-        // Compress the bank slip image client-side for a reliable base64 fallback
+        // Read file as raw base64 first (100% reliable base fallback)
+        const getRawBase64 = (file: File): Promise<string> => {
+          return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (ev) => resolve(ev.target?.result as string || '');
+            reader.onerror = () => resolve('');
+            reader.readAsDataURL(file);
+          });
+        };
+
+        const rawBase64 = await getRawBase64(bankSlip);
+
+        // Compress the bank slip image client-side for a smaller base64 fallback
         const compressBankSlip = (file: File): Promise<string> => {
           return new Promise((resolve, reject) => {
             const reader = new FileReader();
-            reader.readAsDataURL(file);
             reader.onload = (ev) => {
               const img = document.createElement('img');
-              img.src = ev.target?.result as string;
               img.onload = () => {
                 try {
                   const canvas = document.createElement('canvas');
@@ -92,14 +102,16 @@ const CartPage: React.FC = () => {
                   canvas.width = Math.round(w);
                   canvas.height = Math.round(h);
                   const ctx = canvas.getContext('2d');
-                  if (!ctx) { resolve(ev.target?.result as string); return; }
+                  if (!ctx) { resolve(ev.target?.result as string || rawBase64); return; }
                   ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                   resolve(canvas.toDataURL('image/jpeg', 0.6));
-                } catch { resolve(ev.target?.result as string); }
+                } catch { resolve(ev.target?.result as string || rawBase64); }
               };
               img.onerror = () => reject(new Error('Failed to load image for compression'));
+              img.src = ev.target?.result as string;
             };
             reader.onerror = () => reject(new Error('Failed to read file'));
+            reader.readAsDataURL(file);
           });
         };
 
@@ -108,8 +120,12 @@ const CartPage: React.FC = () => {
         try {
           compressedBase64 = await compressBankSlip(bankSlip);
         } catch (compErr) {
-          console.warn('Bank slip compression failed:', compErr);
+          console.warn('Bank slip compression failed, using raw base64:', compErr);
+          compressedBase64 = rawBase64;
         }
+
+        // Ultimate fallback check
+        const fallbackUrl = compressedBase64 || rawBase64;
 
         // Try Firebase Storage upload with generous timeout
         try {
@@ -122,9 +138,9 @@ const CartPage: React.FC = () => {
           );
           bankSlipUrl = await Promise.race([uploadPromise, timeoutPromise]);
         } catch (storageError) {
-          console.warn('Firebase Storage upload failed, using compressed base64 fallback:', storageError);
-          // Use compressed base64 as fallback — typically 30-80KB, well within Firestore 1MB doc limit
-          bankSlipUrl = compressedBase64;
+          console.warn('Firebase Storage upload failed, using fallback base64:', storageError);
+          // Use compressed/raw base64 as fallback
+          bankSlipUrl = fallbackUrl;
         }
       }
 
