@@ -19,6 +19,7 @@ interface OrderWhatsAppPopupProps {
     subtotal: number;
     deliveryCharge: number;
     total: number;
+    paymentMethod?: 'cod' | 'bank_transfer';
   };
 }
 
@@ -34,6 +35,19 @@ const OrderWhatsAppPopup: React.FC<OrderWhatsAppPopupProps> = ({ isOpen, onClose
     .map((item, i) => `  ${i + 1}. ${item.productName} × ${item.quantity} — Rs. ${(item.price * item.quantity).toLocaleString()}`)
     .join('\n');
 
+  const paymentMethodText = order.paymentMethod === 'bank_transfer'
+    ? 'Bank Transfer / බැංකු මාරුව'
+    : 'Cash on Delivery / බෙදාහැරීමේදී මුදල් ගෙවීම';
+
+  const bankDetailsText = order.paymentMethod === 'bank_transfer'
+    ? `
+🏦 *Bank Details for Transfer / බැංකු විස්තර:*
+• Bank Name: Bank of Ceylon
+• Account No: 95251938
+• Account Name: IPMD WIJEGUNAWARDHANA
+• Branch: Padaviya`
+    : '';
+
   const whatsappMessage = `🛒 *SmartZone — New Order / නව ඇණවුම*
 
 ━━━━━━━━━━━━━━━━━━━━
@@ -42,6 +56,8 @@ const OrderWhatsAppPopup: React.FC<OrderWhatsAppPopupProps> = ({ isOpen, onClose
 👤 *Customer / පාරිභෝගිකයා:* ${order.customerName}
 📞 *Phone / දුරකථනය:* ${order.customerPhone}
 📍 *Address / ලිපිනය:* ${order.shippingAddress}
+💳 *Method / ක්‍රමය:* ${paymentMethodText}
+${bankDetailsText}
 
 ━━━━━━━━━━━━━━━━━━━━
 
@@ -107,12 +123,38 @@ ${itemsList}
             </div>
           </div>
 
-          <div className="flex items-start gap-3 mb-5">
+          <div className="flex items-start gap-3 mb-4">
             <div className="p-2 bg-purple-50 rounded-lg mt-0.5">
               <MapPin size={16} className="text-purple-600" />
             </div>
             <p className="text-sm text-gray-600">{order.shippingAddress}</p>
           </div>
+
+          {/* Payment Method Info */}
+          <div className="flex items-center gap-3 mb-4 bg-gray-50/50 p-3 rounded-2xl border border-gray-100">
+            <span className="text-lg">💳</span>
+            <div>
+              <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Payment Method / ගෙවීම් ක්‍රමය</p>
+              <p className="text-sm font-semibold text-gray-800">
+                {order.paymentMethod === 'bank_transfer' ? 'Bank Transfer / බැංකු මාරුව' : 'Cash on Delivery / බෙදාහැරීමේදී ගෙවීම'}
+              </p>
+            </div>
+          </div>
+
+          {order.paymentMethod === 'bank_transfer' && (
+            <div className="bg-gradient-to-br from-indigo-50 to-blue-50/60 border border-blue-100 rounded-2xl p-4 mb-4 space-y-2.5">
+              <div className="flex items-center gap-1 text-indigo-900">
+                <span>🏦</span>
+                <p className="text-xs font-bold uppercase tracking-wider">Bank Details / බැංකු විස්තර:</p>
+              </div>
+              <div className="space-y-1.5 text-xs text-indigo-950 bg-white/80 p-3 rounded-xl border border-indigo-50">
+                <div className="flex justify-between"><span className="text-gray-400">Bank Name</span><span className="font-bold text-gray-800">Bank of Ceylon</span></div>
+                <div className="flex justify-between items-center"><span className="text-gray-400">Account No</span><span className="font-mono font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded text-xs">95251938</span></div>
+                <div className="flex justify-between"><span className="text-gray-400">Account Name</span><span className="font-bold text-gray-800 text-right text-xs">IPMD WIJEGUNAWARDHANA</span></div>
+                <div className="flex justify-between"><span className="text-gray-400">Branch</span><span className="font-bold text-gray-800">padaviya</span></div>
+              </div>
+            </div>
+          )}
 
           {/* Items */}
           <div className="bg-gray-50 rounded-xl p-4 mb-5">

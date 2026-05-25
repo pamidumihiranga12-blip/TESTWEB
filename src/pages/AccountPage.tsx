@@ -95,6 +95,7 @@ const AccountPage: React.FC = () => {
       subtotal: order.subtotal || (order.total - (order.deliveryCharge || 0)),
       deliveryCharge: order.deliveryCharge || 500,
       total: order.total,
+      paymentMethod: order.paymentMethod,
     });
     setShowWhatsAppPopup(true);
   };
@@ -370,6 +371,26 @@ const AccountPage: React.FC = () => {
                           </p>
                         </div>
                       )}
+
+                      {/* Payment Method Details */}
+                      <div className="bg-gray-50 px-3 py-2 rounded-xl mb-3 flex flex-col gap-1.5 border border-gray-100">
+                        <div className="flex items-center justify-between text-xs text-gray-500">
+                          <span className="flex items-center gap-1">💳 Payment Method</span>
+                          <span className="font-semibold text-gray-700 capitalize">
+                            {order.paymentMethod === 'bank_transfer' ? 'Bank Transfer' : 'Cash on Delivery'}
+                          </span>
+                        </div>
+                        {order.paymentMethod === 'bank_transfer' && (
+                          <div className="bg-white rounded-lg p-2.5 mt-1 border border-indigo-50/50 space-y-1 text-[11px] leading-relaxed text-indigo-950">
+                            <p className="font-bold text-indigo-900 flex items-center gap-1">🏦 Bank Details for Transfer:</p>
+                            <p className="text-gray-400">Bank Name: <span className="font-bold text-gray-700">Bank of Ceylon</span></p>
+                            <p className="text-gray-400">A/C Number: <span className="font-mono font-bold text-blue-600">95251938</span></p>
+                            <p className="text-gray-400">Acc Name: <span className="font-bold text-gray-700">IPMD WIJEGUNAWARDHANA</span></p>
+                            <p className="text-gray-400">Branch: <span className="font-bold text-gray-700">padaviya</span></p>
+                            <p className="text-[10px] text-orange-600 font-semibold mt-1">Please transfer the amount and send us the receipt via WhatsApp using the message icon above 💬</p>
+                          </div>
+                        )}
+                      </div>
 
                       <div className="flex items-center justify-between pt-3 border-t border-gray-100">
                         <div className="flex items-center gap-4">

@@ -256,9 +256,35 @@ const TrackOrderPage: React.FC = () => {
                 <h3 className="font-semibold text-gray-700 mb-2 text-sm">Order Info</h3>
                 <p className="text-sm text-gray-500">Email: {order.customerEmail}</p>
                 <p className="text-sm text-gray-500">Items: {order.items.length}</p>
+                <p className="text-sm text-gray-500">Payment: <span className="font-semibold text-gray-700">{order.paymentMethod === 'bank_transfer' ? 'Bank Transfer' : 'Cash on Delivery'}</span></p>
                 <p className="font-bold text-blue-600 text-lg mt-1">Total: Rs. {order.total.toLocaleString()}</p>
               </div>
             </div>
+
+            {/* Bank Transfer Details for pending orders */}
+            {order.paymentMethod === 'bank_transfer' && (
+              <div className="bg-gradient-to-br from-indigo-50/80 to-blue-50/40 border border-blue-100 rounded-2xl p-5 mb-6 space-y-3">
+                <div className="flex items-center gap-2 text-indigo-900">
+                  <span className="text-lg">🏦</span>
+                  <h4 className="font-bold text-xs uppercase tracking-wider">Bank Details for Payment (Bank of Ceylon)</h4>
+                </div>
+                <p className="text-xs text-indigo-950 leading-relaxed">
+                  To complete your order, please transfer the total amount (<strong>Rs. {order.total.toLocaleString()}</strong>) to our bank account. Once done, send a screenshot of the payment receipt via WhatsApp:
+                </p>
+                <div className="bg-white/80 backdrop-blur-sm rounded-xl p-3 border border-indigo-50 space-y-2 text-xs">
+                  <div className="flex justify-between"><span className="text-gray-400">Bank Name</span><span className="font-bold text-gray-800">Bank of Ceylon</span></div>
+                  <div className="flex justify-between items-center"><span className="text-gray-400">Account Number</span><span className="font-mono font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">95251938</span></div>
+                  <div className="flex justify-between"><span className="text-gray-400">Account Name</span><span className="font-bold text-gray-800">IPMD WIJEGUNAWARDHANA</span></div>
+                  <div className="flex justify-between"><span className="text-gray-400">Branch</span><span className="font-bold text-gray-800">padaviya</span></div>
+                </div>
+                {order.status === 'pending' && (
+                  <div className="text-[10px] text-amber-600 font-semibold bg-amber-50 border border-amber-100/50 p-2.5 rounded-lg flex items-start gap-1">
+                    <span className="mt-0.5">💡</span>
+                    <span>Order processing will begin as soon as our team verifies your bank deposit. Thank you!</span>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Items */}
             <h3 className="font-semibold text-gray-700 mb-3">Order Items</h3>

@@ -35,6 +35,7 @@ interface OrderEmailData {
   deliveryCharge: number;
   total: number;
   notes?: string;
+  paymentMethod?: string;
 }
 
 /**
@@ -65,6 +66,7 @@ export const sendOrderEmailToAdmin = async (order: OrderEmailData): Promise<void
       subtotal: `Rs. ${order.subtotal.toLocaleString()}`,
       delivery_charge: `Rs. ${order.deliveryCharge.toLocaleString()}`,
       total: `Rs. ${order.total.toLocaleString()}`,
+      payment_method: order.paymentMethod === 'bank_transfer' ? 'Bank Transfer' : 'Cash on Delivery',
       notes: order.notes || 'No notes',
       order_date: new Date().toLocaleString('en-US', {
         dateStyle: 'full',
@@ -96,6 +98,7 @@ export const sendOrderEmailToCustomer = async (order: OrderEmailData): Promise<v
       subtotal: `Rs. ${order.subtotal.toLocaleString()}`,
       delivery_charge: `Rs. ${order.deliveryCharge.toLocaleString()}`,
       total: `Rs. ${order.total.toLocaleString()}`,
+      payment_method: order.paymentMethod === 'bank_transfer' ? 'Bank Transfer' : 'Cash on Delivery',
       notes: order.notes || 'No notes',
       order_date: new Date().toLocaleString('en-US', {
         dateStyle: 'full',

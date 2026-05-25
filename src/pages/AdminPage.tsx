@@ -76,6 +76,7 @@ const AdminPage: React.FC = () => {
     subtotal: '',
     deliveryCharge: '',
     total: '',
+    paymentMethod: 'cod' as 'cod' | 'bank_transfer',
   });
   const [savingOrder, setSavingOrder] = useState(false);
 
@@ -401,6 +402,7 @@ const AdminPage: React.FC = () => {
       subtotal: (order.subtotal || 0).toString(),
       deliveryCharge: (order.deliveryCharge || 500).toString(),
       total: order.total.toString(),
+      paymentMethod: order.paymentMethod || 'cod',
     });
     setShowOrderEditModal(true);
   };
@@ -420,6 +422,7 @@ const AdminPage: React.FC = () => {
         subtotal: parseFloat(orderForm.subtotal) || 0,
         deliveryCharge: parseFloat(orderForm.deliveryCharge) || 0,
         total: parseFloat(orderForm.total) || 0,
+        paymentMethod: orderForm.paymentMethod,
         updatedAt: Date.now(),
       };
 
@@ -1031,7 +1034,7 @@ const AdminPage: React.FC = () => {
                       </div>
 
                       {/* Customer Info */}
-                      <div className="grid md:grid-cols-2 gap-4 mb-6">
+                      <div className="grid md:grid-cols-3 gap-4 mb-6">
                         <div className="bg-gray-50 p-4 rounded-xl">
                           <h4 className="font-semibold text-gray-700 mb-2 text-sm">Customer Details</h4>
                           <p className="font-medium">{selectedOrder.customerName}</p>
@@ -1041,6 +1044,26 @@ const AdminPage: React.FC = () => {
                         <div className="bg-gray-50 p-4 rounded-xl">
                           <h4 className="font-semibold text-gray-700 mb-2 text-sm">Shipping Address</h4>
                           <p className="text-sm text-gray-600">{selectedOrder.shippingAddress}</p>
+                        </div>
+                        <div className="bg-gray-50 p-4 rounded-xl flex flex-col justify-between">
+                          <div>
+                            <h4 className="font-semibold text-gray-700 mb-2 text-sm">Payment Details</h4>
+                            <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
+                              {selectedOrder.paymentMethod === 'bank_transfer' ? (
+                                <><span className="text-base">🏦</span> Bank Transfer</>
+                              ) : (
+                                <><span className="text-base">💵</span> Cash on Delivery</>
+                              )}
+                            </p>
+                          </div>
+                          {selectedOrder.paymentMethod === 'bank_transfer' && (
+                            <div className="mt-2 bg-indigo-50/80 border border-indigo-100 rounded-lg p-2 text-[10px] text-indigo-950 leading-tight">
+                              <p className="font-bold text-indigo-900 mb-0.5">Transfer Details:</p>
+                              <p>BOC | 95251938</p>
+                              <p className="truncate">IPMD WIJEGUNAWARDHANA</p>
+                              <p>Branch: padaviya</p>
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -1114,6 +1137,7 @@ const AdminPage: React.FC = () => {
                               <th className="text-left py-3 px-4 font-semibold text-gray-600">Order ID</th>
                               <th className="text-left py-3 px-4 font-semibold text-gray-600">Customer</th>
                               <th className="text-left py-3 px-4 font-semibold text-gray-600">Phone</th>
+                              <th className="text-left py-3 px-4 font-semibold text-gray-600">Method</th>
                               <th className="text-left py-3 px-4 font-semibold text-gray-600">Total</th>
                               <th className="text-left py-3 px-4 font-semibold text-gray-600">Status</th>
                               <th className="text-left py-3 px-4 font-semibold text-gray-600">Date</th>
@@ -1126,7 +1150,14 @@ const AdminPage: React.FC = () => {
                                 <td className="py-3 px-4 font-mono text-xs">#{order.id.slice(0, 8)}</td>
                                 <td className="py-3 px-4">{order.customerName}</td>
                                 <td className="py-3 px-4 text-gray-500">{order.customerPhone}</td>
-                                <td className="py-3 px-4 font-semibold">Rs. {order.total.toLocaleString()}</td>
+                                <td className="py-3 px-4 text-xs font-semibold">
+                                  {order.paymentMethod === 'bank_transfer' ? (
+                                    <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded font-bold">Bank Transfer</span>
+                                  ) : (
+                                    <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-bold">COD</span>
+                                  )}
+                                </td>
+                                <td className="py-3 px-4 font-semibold text-blue-600">Rs. {order.total.toLocaleString()}</td>
                                 <td className="py-3 px-4">
                                   <select
                                     value={order.status}
@@ -1240,14 +1271,27 @@ const AdminPage: React.FC = () => {
                         className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:border-blue-400 focus:outline-none text-sm resize-none"
                       />
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Tracking Number</label>
-                      <input
-                        type="text" value={orderForm.trackingNumber}
-                        onChange={e => setOrderForm({ ...orderForm, trackingNumber: e.target.value })}
-                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:border-blue-400 focus:outline-none text-sm"
-                        placeholder="Enter tracking number..."
-                      />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+                        <select
+                          value={orderForm.paymentMethod}
+                          onChange={e => setOrderForm({ ...orderForm, paymentMethod: e.target.value as 'cod' | 'bank_transfer' })}
+                          className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:border-blue-400 focus:outline-none text-sm"
+                        >
+                          <option value="cod">Cash on Delivery</option>
+                          <option value="bank_transfer">Bank Transfer</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Tracking Number</label>
+                        <input
+                          type="text" value={orderForm.trackingNumber}
+                          onChange={e => setOrderForm({ ...orderForm, trackingNumber: e.target.value })}
+                          className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:border-blue-400 focus:outline-none text-sm"
+                          placeholder="Enter tracking number..."
+                        />
+                      </div>
                     </div>
                     <div className="grid grid-cols-3 gap-3">
                       <div>

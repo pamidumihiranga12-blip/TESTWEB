@@ -17,6 +17,7 @@ const CartPage: React.FC = () => {
   const navigate = useNavigate();
   const [showCheckout, setShowCheckout] = useState(false);
   const [ordering, setOrdering] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'cod' | 'bank_transfer'>('cod');
   const [form, setForm] = useState({
     name: userProfile?.displayName || user?.displayName || '',
     email: user?.email || '',
@@ -62,6 +63,7 @@ const CartPage: React.FC = () => {
         deliveryCharge: DELIVERY_CHARGE,
         total: grandTotal,
         status: 'pending',
+        paymentMethod: paymentMethod,
         createdAt: Date.now(),
         notes: form.notes,
       };
@@ -80,6 +82,7 @@ const CartPage: React.FC = () => {
         deliveryCharge: DELIVERY_CHARGE,
         total: grandTotal,
         notes: form.notes,
+        paymentMethod: paymentMethod,
       };
 
       // Send emails (non-blocking)
@@ -96,6 +99,7 @@ const CartPage: React.FC = () => {
         subtotal: subtotal,
         deliveryCharge: DELIVERY_CHARGE,
         total: grandTotal,
+        paymentMethod: paymentMethod,
       });
 
       clearCart();
@@ -272,6 +276,74 @@ const CartPage: React.FC = () => {
                     onChange={e => setForm({...form, notes: e.target.value})}
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100 text-sm resize-none"
                   />
+
+                  {/* Shipping / Payment Method Selector */}
+                  <div className="space-y-2">
+                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider">Payment & Shipping Method</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('cod')}
+                        className={`flex flex-col items-center justify-center p-3 rounded-2xl border-2 text-center transition-all ${
+                          paymentMethod === 'cod'
+                            ? 'border-blue-600 bg-blue-50/50 text-blue-700 font-semibold shadow-sm'
+                            : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50 text-gray-500'
+                        }`}
+                      >
+                        <span className="text-2xl mb-1">💵</span>
+                        <span className="text-xs">Cash on Delivery</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('bank_transfer')}
+                        className={`flex flex-col items-center justify-center p-3 rounded-2xl border-2 text-center transition-all ${
+                          paymentMethod === 'bank_transfer'
+                            ? 'border-blue-600 bg-blue-50/50 text-blue-700 font-semibold shadow-sm'
+                            : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50 text-gray-500'
+                        }`}
+                      >
+                        <span className="text-2xl mb-1">🏦</span>
+                        <span className="text-xs">Bank Transfer</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Bank Transfer Details (if selected) */}
+                  {paymentMethod === 'bank_transfer' && (
+                    <div className="bg-gradient-to-br from-indigo-50/80 to-blue-50/40 border border-blue-100/80 rounded-2xl p-4 space-y-3 shadow-inner">
+                      <div className="flex items-center gap-1.5 text-blue-800">
+                        <span className="text-base">ℹ️</span>
+                        <h5 className="font-bold text-[11px] uppercase tracking-wider">Bank Details for Payment</h5>
+                      </div>
+                      <p className="text-[11px] text-blue-700 leading-relaxed">
+                        Please transfer the total amount to the account below and send a screenshot of the receipt via WhatsApp:
+                      </p>
+                      
+                      <div className="bg-white/90 backdrop-blur-sm rounded-xl p-3 border border-blue-50 space-y-2 text-xs">
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">Bank Name</span>
+                          <span className="font-bold text-gray-800">Bank of Ceylon</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-400">Account Number</span>
+                          <span className="font-mono font-bold text-blue-600 select-all bg-blue-50 px-2 py-0.5 rounded">95251938</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">Account Name</span>
+                          <span className="font-bold text-gray-800 text-right">IPMD WIJEGUNAWARDHANA</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">Branch</span>
+                          <span className="font-bold text-gray-800">padaviya</span>
+                        </div>
+                      </div>
+                      
+                      <div className="text-[10px] text-orange-600 font-semibold flex items-start gap-1 bg-orange-50/80 p-2 rounded-xl border border-orange-100/50">
+                        <span className="shrink-0 mt-0.5">⚠️</span>
+                        <span>Orders using Bank Transfer will be processed once payment is credited and verified.</span>
+                      </div>
+                    </div>
+                  )}
                   <button
                     type="submit"
                     disabled={ordering}

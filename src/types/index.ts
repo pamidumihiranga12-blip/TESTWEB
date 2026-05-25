@@ -37,6 +37,7 @@ export interface Order {
   total: number;
   status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
   trackingNumber?: string;
+  paymentMethod?: 'cod' | 'bank_transfer';
   createdAt: number;
   updatedAt?: number;
   notes?: string;
