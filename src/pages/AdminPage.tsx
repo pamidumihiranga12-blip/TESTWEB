@@ -115,8 +115,51 @@ const AdminPage: React.FC = () => {
   };
 
   // ============================================================
-  // Image Upload to Firebase Storage
+  // Image Upload and Compression Utilities
   // ============================================================
+  const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 800;
+          const MAX_HEIGHT = 800;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(event.target?.result as string);
+            return;
+          }
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+          resolve(dataUrl);
+        };
+        img.onerror = (err) => reject(err);
+      };
+      reader.onerror = (err) => reject(err);
+    });
+  };
+
   const uploadImageToStorage = async (file: File, path: string): Promise<string> => {
     const storageRef = ref(storage, path);
     const snapshot = await uploadBytes(storageRef, file);
@@ -131,10 +174,12 @@ const AdminPage: React.FC = () => {
     // Validate file
     if (!file.type.startsWith('image/')) {
       toast.error('Please select an image file');
+      e.target.value = '';
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
       toast.error('Image must be less than 5MB');
+      e.target.value = '';
       return;
     }
 
@@ -142,13 +187,21 @@ const AdminPage: React.FC = () => {
     try {
       const fileName = `products/${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
       const url = await uploadImageToStorage(file, fileName);
-      setProductForm({ ...productForm, imageUrl: url });
+      setProductForm(prev => ({ ...prev, imageUrl: url }));
       toast.success('Image uploaded successfully!');
     } catch (error) {
-      console.error('Upload error:', error);
-      toast.error('Failed to upload image');
+      console.warn('Storage upload error, falling back to local base64:', error);
+      try {
+        const compressedBase64 = await compressImage(file);
+        setProductForm(prev => ({ ...prev, imageUrl: compressedBase64 }));
+        toast.success('Image loaded successfully (local fallback)!');
+      } catch (fallbackError) {
+        console.error('Fallback error:', fallbackError);
+        toast.error('Failed to load image');
+      }
     } finally {
       setUploadingMainImage(false);
+      e.target.value = '';
     }
   };
 
@@ -162,19 +215,34 @@ const AdminPage: React.FC = () => {
         if (!file.type.startsWith('image/')) return null;
         if (file.size > 5 * 1024 * 1024) return null;
         const fileName = `products/${Date.now()}_${Math.random().toString(36).slice(2)}_${file.name.replace(/\s+/g, '_')}`;
-        return uploadImageToStorage(file, fileName);
+        
+        try {
+          return await uploadImageToStorage(file, fileName);
+        } catch (storageErr) {
+          console.warn('Storage upload failed for additional image, falling back to base64:', storageErr);
+          try {
+            return await compressImage(file);
+          } catch (fallbackErr) {
+            console.error('Fallback failed for additional image:', fallbackErr);
+            return null;
+          }
+        }
       });
 
       const urls = (await Promise.all(uploadPromises)).filter(Boolean) as string[];
-      const existingImages = productForm.images ? productForm.images.split(',').map(s => s.trim()).filter(Boolean) : [];
-      const allImages = [...existingImages, ...urls];
-      setProductForm({ ...productForm, images: allImages.join(', ') });
-      toast.success(`${urls.length} image(s) uploaded!`);
+      
+      setProductForm(prev => {
+        const existingImages = prev.images ? prev.images.split(',').map(s => s.trim()).filter(Boolean) : [];
+        const allImages = [...existingImages, ...urls];
+        return { ...prev, images: allImages.join(', ') };
+      });
+      toast.success(`${urls.length} image(s) loaded!`);
     } catch (error) {
       console.error('Upload error:', error);
-      toast.error('Failed to upload images');
+      toast.error('Failed to load images');
     } finally {
       setUploadingAdditionalImages(false);
+      e.target.value = '';
     }
   };
 
@@ -738,11 +806,28 @@ const AdminPage: React.FC = () => {
                           </label>
                         </div>
                         <div className="flex gap-3 pt-4">
-                          <button type="button" onClick={resetProductForm} className="flex-1 py-2.5 bg-gray-100 text-gray-600 rounded-xl font-medium hover:bg-gray-200 transition">
+                          <button 
+                            type="button" 
+                            onClick={resetProductForm} 
+                            disabled={uploadingMainImage || uploadingAdditionalImages}
+                            className="flex-1 py-2.5 bg-gray-100 text-gray-600 rounded-xl font-medium hover:bg-gray-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
                             Cancel
                           </button>
-                          <button type="submit" className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition flex items-center justify-center gap-2">
-                            <Save size={16} /> {editingProduct ? 'Update' : 'Add'} Product
+                          <button 
+                            type="submit" 
+                            disabled={uploadingMainImage || uploadingAdditionalImages}
+                            className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {uploadingMainImage || uploadingAdditionalImages ? (
+                              <>
+                                <Loader2 size={16} className="animate-spin" /> Saving...
+                              </>
+                            ) : (
+                              <>
+                                <Save size={16} /> {editingProduct ? 'Update' : 'Add'} Product
+                              </>
+                            )}
                           </button>
                         </div>
                       </form>
