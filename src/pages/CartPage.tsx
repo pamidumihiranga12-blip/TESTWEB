@@ -76,12 +76,27 @@ const CartPage: React.FC = () => {
       if (paymentMethod === 'bank_transfer' && bankSlip) {
         try {
           const storageRef = ref(storage, `bank_slips/${Date.now()}_${bankSlip.name}`);
-          const uploadResult = await uploadBytes(storageRef, bankSlip);
-          bankSlipUrl = await getDownloadURL(uploadResult.ref);
+          
+          // Timeout after 3.5 seconds to prevent hanging if Storage is not activated in console
+          const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Firebase Storage upload timed out after 3.5 seconds')), 3500)
+          );
+          
+          const uploadPromise = uploadBytes(storageRef, bankSlip);
+          const uploadResult = await Promise.race([uploadPromise, timeoutPromise]);
+          
+          // Get download URL with 2-second timeout
+          const urlPromise = getDownloadURL(uploadResult.ref);
+          const urlTimeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Firebase Storage URL lookup timed out')), 2000)
+          );
+          
+          bankSlipUrl = await Promise.race([urlPromise, urlTimeoutPromise]);
         } catch (storageError) {
-          console.error('Error uploading bank transfer slip, using base64 fallback:', storageError);
-          // If storage upload fails (e.g. storage rules or quota), use base64 fallback if image is small enough
-          if (bankSlipPreview && bankSlipPreview.length < 1000000) {
+          console.error('Error uploading bank transfer slip:', storageError);
+          // If storage upload fails or times out, we use base64 fallback only if the file size is very small (< 100KB)
+          // to avoid bloat and Firestore document size limit issues.
+          if (bankSlipPreview && bankSlipPreview.length < 130000) {
             bankSlipUrl = bankSlipPreview;
           }
         }
