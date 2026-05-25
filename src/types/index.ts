@@ -38,6 +38,7 @@ export interface Order {
   status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
   trackingNumber?: string;
   paymentMethod?: 'cod' | 'bank_transfer';
+  bankSlipUrl?: string;
   createdAt: number;
   updatedAt?: number;
   notes?: string;

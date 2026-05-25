@@ -1067,6 +1067,38 @@ const AdminPage: React.FC = () => {
                         </div>
                       </div>
 
+                      {/* Bank Transfer Slip */}
+                      {selectedOrder.paymentMethod === 'bank_transfer' && (
+                        <div className="mb-6 bg-blue-50 border border-blue-100 p-4 rounded-xl">
+                          <h4 className="font-semibold text-blue-900 mb-2 text-sm flex items-center gap-1.5">
+                            <span>📄</span> Bank Transfer Receipt Slip
+                          </h4>
+                          {selectedOrder.bankSlipUrl ? (
+                            <div className="space-y-2">
+                              <div className="relative group max-w-sm rounded-lg overflow-hidden border border-blue-200 bg-white shadow-sm">
+                                <img
+                                  src={selectedOrder.bankSlipUrl}
+                                  alt="Uploaded Bank Transfer Slip"
+                                  className="max-h-60 object-contain mx-auto"
+                                />
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                  <a
+                                    href={selectedOrder.bankSlipUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="px-4 py-2 bg-white text-gray-800 rounded-lg font-medium text-xs shadow-md hover:bg-gray-100 transition"
+                                  >
+                                    View Full Image 🔗
+                                  </a>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-gray-500 italic">No bank transfer slip uploaded by the customer yet.</p>
+                          )}
+                        </div>
+                      )}
+
                       {/* Items */}
                       <h4 className="font-semibold text-gray-700 mb-3">Items</h4>
                       <div className="space-y-2 mb-4">

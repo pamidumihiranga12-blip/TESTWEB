@@ -387,7 +387,21 @@ const AccountPage: React.FC = () => {
                             <p className="text-gray-400">A/C Number: <span className="font-mono font-bold text-blue-600">95251938</span></p>
                             <p className="text-gray-400">Acc Name: <span className="font-bold text-gray-700">IPMD WIJEGUNAWARDHANA</span></p>
                             <p className="text-gray-400">Branch: <span className="font-bold text-gray-700">padaviya</span></p>
-                            <p className="text-[10px] text-orange-600 font-semibold mt-1">Please transfer the amount and send us the receipt via WhatsApp using the message icon above 💬</p>
+                            {order.bankSlipUrl ? (
+                              <div className="mt-2 pt-2 border-t border-indigo-50 flex items-center justify-between">
+                                <span className="text-gray-500 font-medium">Receipt Slip:</span>
+                                <a
+                                  href={order.bankSlipUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-blue-600 hover:text-blue-700 underline font-semibold flex items-center gap-0.5"
+                                >
+                                  View Uploaded Slip 📄
+                                </a>
+                              </div>
+                            ) : (
+                              <p className="text-[10px] text-orange-600 font-semibold mt-1">Please transfer the amount and send us the receipt via WhatsApp using the message icon above 💬</p>
+                            )}
                           </div>
                         )}
                       </div>

@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Minus, Plus, Trash2, ShoppingBag, ArrowLeft, ArrowRight, Truck } from 'lucide-react';
+import { Minus, Plus, Trash2, ShoppingBag, ArrowLeft, ArrowRight, Truck, Upload, X } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { collection, addDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '../lib/firebase';
 import toast from 'react-hot-toast';
 import { sendOrderEmailToAdmin, sendOrderEmailToCustomer } from '../utils/emailService';
 import OrderWhatsAppPopup from '../components/OrderWhatsAppPopup';
@@ -26,12 +27,31 @@ const CartPage: React.FC = () => {
     notes: '',
   });
 
+  const [bankSlip, setBankSlip] = useState<File | null>(null);
+  const [bankSlipPreview, setBankSlipPreview] = useState<string | null>(null);
+
   // WhatsApp popup state
   const [showWhatsAppPopup, setShowWhatsAppPopup] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<any>(null);
 
   const subtotal = getTotal();
   const grandTotal = subtotal + DELIVERY_CHARGE;
+
+  const handleBankSlipChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image file size should be less than 5MB');
+        return;
+      }
+      setBankSlip(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setBankSlipPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,6 +72,21 @@ const CartPage: React.FC = () => {
         imageUrl: item.product.imageUrl,
       }));
 
+      let bankSlipUrl = '';
+      if (paymentMethod === 'bank_transfer' && bankSlip) {
+        try {
+          const storageRef = ref(storage, `bank_slips/${Date.now()}_${bankSlip.name}`);
+          const uploadResult = await uploadBytes(storageRef, bankSlip);
+          bankSlipUrl = await getDownloadURL(uploadResult.ref);
+        } catch (storageError) {
+          console.error('Error uploading bank transfer slip, using base64 fallback:', storageError);
+          // If storage upload fails (e.g. storage rules or quota), use base64 fallback if image is small enough
+          if (bankSlipPreview && bankSlipPreview.length < 1000000) {
+            bankSlipUrl = bankSlipPreview;
+          }
+        }
+      }
+
       const orderData = {
         userId: user.uid,
         customerName: form.name,
@@ -64,6 +99,7 @@ const CartPage: React.FC = () => {
         total: grandTotal,
         status: 'pending',
         paymentMethod: paymentMethod,
+        bankSlipUrl: bankSlipUrl || null,
         createdAt: Date.now(),
         notes: form.notes,
       };
@@ -83,6 +119,7 @@ const CartPage: React.FC = () => {
         total: grandTotal,
         notes: form.notes,
         paymentMethod: paymentMethod,
+        bankSlipUrl: bankSlipUrl || undefined,
       };
 
       // Send emails (non-blocking)
@@ -100,6 +137,7 @@ const CartPage: React.FC = () => {
         deliveryCharge: DELIVERY_CHARGE,
         total: grandTotal,
         paymentMethod: paymentMethod,
+        bankSlipUrl: bankSlipUrl || null,
       });
 
       clearCart();
@@ -338,6 +376,48 @@ const CartPage: React.FC = () => {
                         </div>
                       </div>
                       
+                      {/* Bank Slip Upload */}
+                      <div className="space-y-2 pt-3 border-t border-blue-100">
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-blue-800">
+                          Upload Bank Transfer Slip (Optional)
+                        </label>
+                        {!bankSlipPreview ? (
+                          <div className="relative group border-2 border-dashed border-blue-200 hover:border-blue-400 rounded-xl p-3 transition bg-white/60 hover:bg-white flex flex-col items-center justify-center cursor-pointer">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleBankSlipChange}
+                              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                            />
+                            <Upload className="text-blue-400 group-hover:text-blue-500 mb-1" size={20} />
+                            <span className="text-xs text-blue-950 font-medium group-hover:text-blue-600">Choose slip image</span>
+                            <span className="text-[9px] text-gray-400">Supports PNG, JPG, JPEG (Max 5MB)</span>
+                          </div>
+                        ) : (
+                          <div className="relative rounded-xl overflow-hidden border border-blue-200 bg-white p-2">
+                            <img
+                              src={bankSlipPreview}
+                              alt="Bank slip preview"
+                              className="w-full max-h-36 object-contain rounded-lg"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setBankSlip(null);
+                                setBankSlipPreview(null);
+                              }}
+                              className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition shadow-md"
+                              title="Remove image"
+                            >
+                              <X size={12} />
+                            </button>
+                            <div className="text-[10px] text-gray-500 mt-1 text-center font-medium truncate">
+                              📎 {bankSlip?.name}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
                       <div className="text-[10px] text-orange-600 font-semibold flex items-start gap-1 bg-orange-50/80 p-2 rounded-xl border border-orange-100/50">
                         <span className="shrink-0 mt-0.5">⚠️</span>
                         <span>Orders using Bank Transfer will be processed once payment is credited and verified.</span>

@@ -286,6 +286,26 @@ const TrackOrderPage: React.FC = () => {
               </div>
             )}
 
+            {/* Uploaded Receipt Preview (if available) */}
+            {order.bankSlipUrl && (
+              <div className="bg-gray-50 border border-gray-200 p-5 rounded-2xl mb-6 space-y-2">
+                <h4 className="font-bold text-xs uppercase tracking-wider text-gray-700">📄 Uploaded Transfer Receipt Slip</h4>
+                <div className="max-w-xs rounded-xl overflow-hidden border border-gray-200 bg-white shadow-sm relative group">
+                  <img src={order.bankSlipUrl} alt="Bank Transfer Slip" className="max-h-48 object-contain mx-auto" />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <a
+                      href={order.bankSlipUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-3 py-1.5 bg-white text-gray-800 rounded-lg font-medium text-xs shadow-md hover:bg-gray-100 transition"
+                    >
+                      View Full Image 🔗
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Items */}
             <h3 className="font-semibold text-gray-700 mb-3">Order Items</h3>
             <div className="space-y-3">
