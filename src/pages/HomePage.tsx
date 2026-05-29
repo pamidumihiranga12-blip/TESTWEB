@@ -317,7 +317,7 @@ const HomePage: React.FC = () => {
             <div className="relative">
               <img src="/images/about-store.jpg" alt="SmartZone Store" className="rounded-2xl shadow-lg" />
               <div className="absolute -bottom-4 -left-4 bg-blue-600 text-white p-4 rounded-xl shadow-lg">
-                <p className="text-sm font-semibold">Trusted Since 2026Happy CustomersHappy Customers</p>
+                <p className="text-sm font-semibold">Trusted Since 2026</p>
               </div>
             </div>
           </div>
