@@ -36,39 +36,39 @@ const OrderWhatsAppPopup: React.FC<OrderWhatsAppPopupProps> = ({ isOpen, onClose
     .join('\n');
 
   const paymentMethodText = order.paymentMethod === 'bank_transfer'
-    ? 'Bank Transfer / බැංකු මාරුව'
-    : 'Cash on Delivery / බෙදාහැරීමේදී මුදල් ගෙවීම';
+    ? 'Bank Transfer '
+    : 'Cash on Delivery ';
 
   const bankDetailsText = order.paymentMethod === 'bank_transfer'
     ? `
-🏦 *Bank Details for Transfer / බැංකු විස්තර:*
+🏦 *Bank Details for Transfer :*
 • Bank Name: Bank of Ceylon
 • Account No: 95251938
 • Account Name: IPMD WIJEGUNAWARDHANA
 • Branch: Padaviya`
     : '';
 
-  const whatsappMessage = `🛒 *SmartZone — New Order / නව ඇණවුම*
+  const whatsappMessage = `🛒 *SmartZone — New Order*
 
 ━━━━━━━━━━━━━━━━━━━━
 
-📦 *Order ID / ඇණවුම් අංකය:* #${orderId}
-👤 *Customer / පාරිභෝගිකයා:* ${order.customerName}
-📞 *Phone / දුරකථනය:* ${order.customerPhone}
-📍 *Address / ලිපිනය:* ${order.shippingAddress}
-💳 *Method / ක්‍රමය:* ${paymentMethodText}
+📦 *Order ID :* #${orderId}
+👤 *Customer :* ${order.customerName}
+📞 *Phone :* ${order.customerPhone}
+📍 *Address :* ${order.shippingAddress}
+💳 *Method :* ${paymentMethodText}
 ${bankDetailsText}
 
 ━━━━━━━━━━━━━━━━━━━━
 
-🛍️ *Items / අයිතම:*
+🛍️ *Items :*
 ${itemsList}
 
 ━━━━━━━━━━━━━━━━━━━━
 
-💰 *Subtotal / උප එකතුව:* Rs. ${order.subtotal.toLocaleString()}
-🚚 *Delivery / බෙදාහැරීම:* Rs. ${order.deliveryCharge.toLocaleString()}
-💵 *Total / මුළු එකතුව:* Rs. ${order.total.toLocaleString()}
+💰 *Subtotal :* Rs. ${order.subtotal.toLocaleString()}
+🚚 *Delivery :* Rs. ${order.deliveryCharge.toLocaleString()}
+💵 *Total :* Rs. ${order.total.toLocaleString()}
 
 ━━━━━━━━━━━━━━━━━━━━
 
@@ -136,7 +136,7 @@ ${itemsList}
             <div>
               <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Payment Method / ගෙවීම් ක්‍රමය</p>
               <p className="text-sm font-semibold text-gray-800">
-                {order.paymentMethod === 'bank_transfer' ? 'Bank Transfer / බැංකු මාරුව' : 'Cash on Delivery / බෙදාහැරීමේදී ගෙවීම'}
+                {order.paymentMethod === 'bank_transfer' ? 'Bank Transfer ' : 'Cash on Delivery / බෙදාහැරීමේදී ගෙවීම'}
               </p>
             </div>
           </div>
@@ -161,7 +161,7 @@ ${itemsList}
             <div className="flex items-center gap-2 mb-3">
               <Package size={16} className="text-gray-500" />
               <span className="text-sm font-semibold text-gray-700">
-                Items / අයිතම ({order.items.length})
+                Items  ({order.items.length})
               </span>
             </div>
             <div className="space-y-2">
@@ -179,15 +179,15 @@ ${itemsList}
             <hr className="my-3 border-gray-200" />
             <div className="space-y-1.5">
               <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Subtotal / උප එකතුව</span>
+                <span className="text-gray-500">Subtotal </span>
                 <span className="font-medium">Rs. {order.subtotal.toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Delivery / බෙදාහැරීම 🚚</span>
+                <span className="text-gray-500">Delivery  🚚</span>
                 <span className="font-medium">Rs. {order.deliveryCharge.toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-base font-bold pt-1">
-                <span className="text-gray-800">Total / මුළු එකතුව</span>
+                <span className="text-gray-800">Total </span>
                 <span className="text-green-600">Rs. {order.total.toLocaleString()}</span>
               </div>
             </div>
@@ -212,7 +212,7 @@ ${itemsList}
             onClick={onClose}
             className="w-full mt-3 py-2.5 text-gray-500 hover:text-gray-700 text-sm font-medium transition"
           >
-            Skip / මඟ හරින්න
+            Skip 
           </button>
         </div>
       </div>

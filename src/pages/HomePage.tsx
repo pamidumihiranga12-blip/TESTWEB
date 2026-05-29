@@ -305,7 +305,7 @@ const HomePage: React.FC = () => {
               </p>
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-4 bg-white rounded-xl shadow-sm">
-                  <h4 className="text-2xl font-bold text-blue-600">500+</h4>
+                  <h4 className="text-2xl font-bold text-blue-600">5000+</h4>
                   <p className="text-sm text-gray-500">Happy Customers</p>
                 </div>
                 <div className="p-4 bg-white rounded-xl shadow-sm">
@@ -317,7 +317,7 @@ const HomePage: React.FC = () => {
             <div className="relative">
               <img src="/images/about-store.jpg" alt="SmartZone Store" className="rounded-2xl shadow-lg" />
               <div className="absolute -bottom-4 -left-4 bg-blue-600 text-white p-4 rounded-xl shadow-lg">
-                <p className="text-sm font-semibold">Trusted Since 2024</p>
+                <p className="text-sm font-semibold">Trusted Since 2026Happy CustomersHappy Customers</p>
               </div>
             </div>
           </div>
